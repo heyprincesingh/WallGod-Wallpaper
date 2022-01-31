@@ -50,6 +50,7 @@ dependencies:
   share: ^2.0.4
   rename: ^2.0.1
   flutter_native_splash: ^1.3.3
+  admob_flutter: ^2.0.0
 
 flutter_native_splash:
   color: "#222830"

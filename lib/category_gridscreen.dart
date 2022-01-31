@@ -81,7 +81,10 @@ class gridscreenState extends State<gridscreen> {
                         toastLength: Toast.LENGTH_SHORT);
                     loadmore();
                   }
-                  else Navigator.push(context, MaterialPageRoute(builder: (context) => selectWallpaper(imagenum : index,imagesUrl : imagesUrl)));
+                  else if(imagesUrl != null){
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => selectWallpaper(imagenum : index,imagesUrl : imagesUrl)));
+                  }
+                  else if(imagesUrl == null){}
                 },
                 child: Container(
                     alignment: Alignment.center,

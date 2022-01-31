@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
@@ -11,6 +12,7 @@ import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:admob_flutter/admob_flutter.dart';
 
 
 List<String> originalFavouriteUrls = [];
@@ -25,6 +27,8 @@ class selectWallpaper extends StatefulWidget {
 }
 
 class _selectWallpaperState extends State<selectWallpaper> {
+
+  late AdmobInterstitial interstitialAd;
 
   getFavouritewallUrl(originalimagesUrl) async {
     SharedPreferences originalFavouriteUrlspref = await SharedPreferences.getInstance();
@@ -50,167 +54,195 @@ class _selectWallpaperState extends State<selectWallpaper> {
 
   @override
   void initState() {
-
     super.initState();
+
+    Admob.requestTrackingAuthorization();
+
+    interstitialAd = AdmobInterstitial(
+      adUnitId: getInterstitialAdUnitId()!,
+      listener: (AdmobAdEvent event, Map<String, dynamic>? args) {
+        if (event == AdmobAdEvent.closed) interstitialAd.load();
+      },
+    );
+    interstitialAd.load();
+  }
+
+
+  String? getInterstitialAdUnitId() {
+    if (Platform.isIOS) {
+      return 'ca-app-pub-3940256099942544/4411468910';
+    } else if (Platform.isAndroid) {
+      return 'ca-app-pub-3940256099942544/1033173712';
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     int? downloadindex = widget.imagenum;
-    return Scaffold(
-      body: Swiper(
-        index: widget.imagenum,
-          itemCount: widget.imagesUrl!.length,
-          scrollDirection: Axis.horizontal,
-          loop: false,
-          onIndexChanged: (index){
-            downloadindex = index;
-          },
-          itemBuilder: (BuildContext context,index){
-            return Container(
-              color: Colors.black,
-              child: Stack(
-                children: [
-                  Container(
-                    height: MediaQuery.of(context).size.height,
-                    child: Image.network(
-                        "${this.widget.imagesUrl?[index]["src"]["large2x"]}",
-                        fit: BoxFit.fitHeight,
+    return WillPopScope(
+      onWillPop: () async {
+        final isLoaded = await interstitialAd.isLoaded;
+        if (isLoaded ?? false) {
+          interstitialAd.show();
+        }
+        return true;
+        },
+      child: Scaffold(
+        body: Swiper(
+          index: widget.imagenum,
+            itemCount: widget.imagesUrl!.length,
+            scrollDirection: Axis.horizontal,
+            loop: false,
+            onIndexChanged: (index){
+              downloadindex = index;
+            },
+            itemBuilder: (BuildContext context,index){
+              return Container(
+                color: Colors.black,
+                child: Stack(
+                  children: [
+                    Container(
+                      height: MediaQuery.of(context).size.height,
+                      child: Image.network(
+                          "${this.widget.imagesUrl?[index]["src"]["large2x"]}",
+                          fit: BoxFit.fitHeight,
 
-                        loadingBuilder: (BuildContext context, Widget child,
-                            ImageChunkEvent? loadingProgress) {
-                          if (loadingProgress == null) {
-                            return child;
+                          loadingBuilder: (BuildContext context, Widget child,
+                              ImageChunkEvent? loadingProgress) {
+                            if (loadingProgress == null) {
+                              return child;
+                            }
+                            return Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xff3d3d3d),
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
                           }
-                          return Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xff3d3d3d),
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
-                                  : null,
-                            ),
-                          );
-                        }
+                      ),
                     ),
-                  ),
-                  Positioned(
-                      bottom: 0,
-                      child: Container(
-                        color: Colors.black38,
-                          width: MediaQuery.of(context).size.width,
-                          child: Center(child: Text("Image By ${this.widget.imagesUrl?[index]["photographer"]} on Pexels.com",
-                          style: TextStyle(
-                            fontSize: 8,
-                            color: Colors.white),)
-                          )
-                      )
-                  ),
-                ],
-              )
-            );
-          }
-      ),
-      floatingActionButton: SpeedDial(
-        backgroundColor: Color(0xff2b2b2b),
-        renderOverlay: false,
-        animationAngle: 2.2,
-        closeDialOnPop: true,
-        spacing: 15,
-        useRotationAnimation: true,
-        elevation: 15,
-        spaceBetweenChildren: 10,
-        animatedIcon: AnimatedIcons.menu_close,
-        children: [
-          SpeedDialChild(
-            elevation: 20,
-            child: Tooltip(
-                message: "Download Wallpaper",
-                child: Icon(Icons.save)),
-            backgroundColor: Color(0xffd5d5d5),
-            onTap: ()async{
-              var actionsheet = CupertinoActionSheet(
-                title: Text("Download",style: TextStyle(color: Colors.black87,fontSize: 20,fontWeight: FontWeight.w500)),
-                actions: [
-                  CupertinoActionSheetAction(onPressed: ()async{
-                    Fluttertoast.showToast(msg: 'Downloading...',
-                      toastLength: Toast.LENGTH_SHORT);
-                    Navigator.of(context).pop();
-                    String url = widget.imagesUrl?[downloadindex!]["src"]["original"];
-                    final time = DateTime.now().toIso8601String().replaceAll('.', '-').replaceAll(':', '-');
-                    String name = "WallGod-$time";
-                    var status = await Permission.storage.request();
-                    if(status.isGranted){
-                      var response = await Dio().get(url,
-                          options: Options(responseType: ResponseType.bytes));
-                      final result = await ImageGallerySaver.saveImage(Uint8List.fromList(response.data),name: name);
-                      Fluttertoast.showToast(msg: 'Download Complete',
-                        toastLength: Toast.LENGTH_SHORT);
-                    }
-                  }, child: Text("Original - 4K",style: TextStyle(color: Colors.black87),)),
-                  CupertinoActionSheetAction(onPressed: ()async{
-                    Fluttertoast.showToast(msg: 'Downloading...',
-                      toastLength: Toast.LENGTH_SHORT);
-                    Navigator.of(context).pop();
-                    String url = widget.imagesUrl?[downloadindex!]["src"]["large2x"];
-                    final time = DateTime.now().toIso8601String().replaceAll('.', '-').replaceAll(':', '-');
-                    String name = "WallGod-$time";
-                    var status = await Permission.storage.request();
-                    if(status.isGranted){
-                      var response = await Dio().get(url,
-                          options: Options(responseType: ResponseType.bytes));
-                      final result = await ImageGallerySaver.saveImage(Uint8List.fromList(response.data),name: name);
-                      Fluttertoast.showToast(msg: 'Download Complete',
-                        toastLength: Toast.LENGTH_SHORT);
-                    }
-                  }, child: Text("Full HD",style: TextStyle(color: Colors.black87))),
-                ],
+                    Positioned(
+                        bottom: 0,
+                        child: Container(
+                          color: Colors.black38,
+                            width: MediaQuery.of(context).size.width,
+                            child: Center(child: Text("Image By ${this.widget.imagesUrl?[index]["photographer"]} on Pexels.com",
+                            style: TextStyle(
+                              fontSize: 8,
+                              color: Colors.white),)
+                            )
+                        )
+                    ),
+                  ],
+                )
               );
-              showCupertinoModalPopup(context: context, builder: (context) => actionsheet);
-              },
-          ),
-          SpeedDialChild(
+            }
+        ),
+        floatingActionButton: SpeedDial(
+          backgroundColor: Color(0xff2b2b2b),
+          renderOverlay: false,
+          animationAngle: 2.2,
+          closeDialOnPop: true,
+          spacing: 15,
+          useRotationAnimation: true,
+          elevation: 15,
+          spaceBetweenChildren: 10,
+          animatedIcon: AnimatedIcons.menu_close,
+          children: [
+            SpeedDialChild(
               elevation: 20,
               child: Tooltip(
-                  message: "Set Wallpaper",
-                  child: Icon(Icons.wallpaper)),
+                  message: "Download Wallpaper",
+                  child: Icon(Icons.save)),
               backgroundColor: Color(0xffd5d5d5),
-              onTap: () async{
+              onTap: ()async{
                 var actionsheet = CupertinoActionSheet(
-                  title: Text("Set as",style: TextStyle(color: Colors.black87,fontSize: 20,fontWeight: FontWeight.w500)),
+                  title: Text("Download",style: TextStyle(color: Colors.black87,fontSize: 20,fontWeight: FontWeight.w500)),
                   actions: [
                     CupertinoActionSheetAction(onPressed: ()async{
-                      await setwallLocation(downloadindex, context , 1);
+                      Fluttertoast.showToast(msg: 'Downloading...',
+                        toastLength: Toast.LENGTH_SHORT);
                       Navigator.of(context).pop();
-                    }, child: Text("Home Screen",style: TextStyle(color: Colors.black87),)),
+                      String url = widget.imagesUrl?[downloadindex!]["src"]["original"];
+                      final time = DateTime.now().toIso8601String().replaceAll('.', '-').replaceAll(':', '-');
+                      String name = "WallGod-$time";
+                      var status = await Permission.storage.request();
+                      if(status.isGranted){
+                        var response = await Dio().get(url,
+                            options: Options(responseType: ResponseType.bytes));
+                        final result = await ImageGallerySaver.saveImage(Uint8List.fromList(response.data),name: name);
+                        Fluttertoast.showToast(msg: 'Download Complete',
+                          toastLength: Toast.LENGTH_SHORT);
+                      }
+                    }, child: Text("Original - 4K",style: TextStyle(color: Colors.black87),)),
                     CupertinoActionSheetAction(onPressed: ()async{
-                      await setwallLocation(downloadindex, context , 2);
+                      Fluttertoast.showToast(msg: 'Downloading...',
+                        toastLength: Toast.LENGTH_SHORT);
                       Navigator.of(context).pop();
-                    }, child: Text("Lock Screen",style: TextStyle(color: Colors.black87))),
-                    CupertinoActionSheetAction(onPressed: ()async{
-                      await setwallLocation(downloadindex, context , 3);
-                      Navigator.of(context).pop();
-                    }, child: Text("Both",style: TextStyle(color: Colors.black87))),
+                      String url = widget.imagesUrl?[downloadindex!]["src"]["large2x"];
+                      final time = DateTime.now().toIso8601String().replaceAll('.', '-').replaceAll(':', '-');
+                      String name = "WallGod-$time";
+                      var status = await Permission.storage.request();
+                      if(status.isGranted){
+                        var response = await Dio().get(url,
+                            options: Options(responseType: ResponseType.bytes));
+                        final result = await ImageGallerySaver.saveImage(Uint8List.fromList(response.data),name: name);
+                        Fluttertoast.showToast(msg: 'Download Complete',
+                          toastLength: Toast.LENGTH_SHORT);
+                      }
+                    }, child: Text("Full HD",style: TextStyle(color: Colors.black87))),
                   ],
                 );
                 showCupertinoModalPopup(context: context, builder: (context) => actionsheet);
-              },
-             // label: "Set Wallpaper"
-          ),
-          SpeedDialChild(
-              elevation: 20,
-              child: Tooltip(
-                  message: "Add to Favourite",
-                  child: Icon(CupertinoIcons.heart_fill,color: Colors.red,)),
-              backgroundColor: Color(0xffd5d5d5),
-              onTap: (){
-                getFavouritewallUrl(widget.imagesUrl?[downloadindex!]["src"]["original"]);
                 },
-             // label: "Favourite"
-          ),
-        ],
+            ),
+            SpeedDialChild(
+                elevation: 20,
+                child: Tooltip(
+                    message: "Set Wallpaper",
+                    child: Icon(Icons.wallpaper)),
+                backgroundColor: Color(0xffd5d5d5),
+                onTap: () async{
+                  var actionsheet = CupertinoActionSheet(
+                    title: Text("Set as",style: TextStyle(color: Colors.black87,fontSize: 20,fontWeight: FontWeight.w500)),
+                    actions: [
+                      CupertinoActionSheetAction(onPressed: ()async{
+                        await setwallLocation(downloadindex, context , 1);
+                        Navigator.of(context).pop();
+                      }, child: Text("Home Screen",style: TextStyle(color: Colors.black87),)),
+                      CupertinoActionSheetAction(onPressed: ()async{
+                        await setwallLocation(downloadindex, context , 2);
+                        Navigator.of(context).pop();
+                      }, child: Text("Lock Screen",style: TextStyle(color: Colors.black87))),
+                      CupertinoActionSheetAction(onPressed: ()async{
+                        await setwallLocation(downloadindex, context , 3);
+                        Navigator.of(context).pop();
+                      }, child: Text("Both",style: TextStyle(color: Colors.black87))),
+                    ],
+                  );
+                  showCupertinoModalPopup(context: context, builder: (context) => actionsheet);
+                },
+               // label: "Set Wallpaper"
+            ),
+            SpeedDialChild(
+                elevation: 20,
+                child: Tooltip(
+                    message: "Add to Favourite",
+                    child: Icon(CupertinoIcons.heart_fill,color: Colors.red,)),
+                backgroundColor: Color(0xffd5d5d5),
+                onTap: (){
+                  getFavouritewallUrl(widget.imagesUrl?[downloadindex!]["src"]["original"]);
+                  },
+               // label: "Favourite"
+            ),
+          ],
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -237,5 +269,11 @@ class _selectWallpaperState extends State<selectWallpaper> {
     bool result = await WallpaperManager.setWallpaperFromFile(cropperdImage!.path, location);
     Fluttertoast.showToast(msg: 'New wallpaper set',
         toastLength: Toast.LENGTH_SHORT);
+  }
+
+  @override
+  void dispose() {
+    interstitialAd.dispose();
+    super.dispose();
   }
 }
