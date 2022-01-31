@@ -1,10 +1,12 @@
 import 'package:darkwall/SelectWallpaper.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 List? imagesUrl = null;
+int page = 2;
 
 class gridscreen extends StatefulWidget {
   final String? categoryValue;
@@ -24,13 +26,29 @@ class gridscreenState extends State<gridscreen> {
 
 
   getApidata() async{
-    await http.get(Uri.parse("https://api.pexels.com/v1/search?query=wallpaper ${widget.categoryValue}&per_page=80"),
+    await http.get(Uri.parse("https://api.pexels.com/v1/search?query=wallpaper ${widget.categoryValue}&per_page=80&page=1"),
         headers: {
           "Authorization":"563492ad6f91700001000001cfa06beb513d43d4a2dc798579d74e17"
         }).then((value){
       Map result = jsonDecode(value.body);
       setState(() {
         imagesUrl = result["photos"];
+        imagesUrl = List.from(imagesUrl!.reversed);
+        listcount = imagesUrl!.length + 1;
+      });
+    });
+  }
+  loadmore() async{
+    setState(() {
+      page++;
+    });
+    await http.get(Uri.parse("https://api.pexels.com/v1/search?query=wallpaper ${widget.categoryValue}&per_page=80&page=$page"),
+        headers: {
+          "Authorization":"563492ad6f91700001000001cfa06beb513d43d4a2dc798579d74e17"
+        }).then((value){
+      Map result = jsonDecode(value.body);
+      setState(() {
+        imagesUrl!.addAll(result["photos"]);
         listcount = imagesUrl!.length + 1;
       });
     });
@@ -59,9 +77,9 @@ class gridscreenState extends State<gridscreen> {
               return GestureDetector(
                 onTap: (){
                   if(index == listcount-1){
-                    setState(() {
-                      listcount+= 48;
-                    });
+                    Fluttertoast.showToast(msg: 'Loading...',
+                        toastLength: Toast.LENGTH_SHORT);
+                    loadmore();
                   }
                   else Navigator.push(context, MaterialPageRoute(builder: (context) => selectWallpaper(imagenum : index,imagesUrl : imagesUrl)));
                 },

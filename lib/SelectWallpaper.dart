@@ -49,6 +49,12 @@ class _selectWallpaperState extends State<selectWallpaper> {
   }
 
   @override
+  void initState() {
+
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     int? downloadindex = widget.imagenum;
     return Scaffold(

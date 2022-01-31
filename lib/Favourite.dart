@@ -24,6 +24,7 @@ class _favouriteState extends State<favourite> {
     SharedPreferences originalFavouriteUrlspref = await SharedPreferences.getInstance();
     setState(() {
       originalFavouriteUrls = originalFavouriteUrlspref.getStringList("originalFavouriteUrls") ?? null;
+      originalFavouriteUrls = List.from(originalFavouriteUrls!.reversed);
     });
   }
 

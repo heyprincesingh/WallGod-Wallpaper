@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:darkwall/Category_Screen_gridimages.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 
@@ -39,7 +40,7 @@ class Category_screen extends StatelessWidget {
                       child: Container(
                         height: device.width * 0.5,
                         width: device.width * 0.5,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                             image: DecorationImage(fit: BoxFit.fitWidth,
                                 image: AssetImage("assets/world.jpeg")
                             )

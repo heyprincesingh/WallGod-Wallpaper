@@ -80,8 +80,8 @@ detailsAlertbox(BuildContext context){
       backgroundColor: Colors.white,
       title: Row(
         children: [
-          Icon(Icons.whatshot,color: Colors.deepOrangeAccent,),
-          SizedBox(width: 5,),
+          Image.asset("assets/logo.png",width: 50,height: 50,),
+          SizedBox(width: 10),
           Text("WallGod",style: TextStyle(fontSize: 25,fontFamily: "Tiles"),)
         ],
       ),

@@ -48,6 +48,14 @@ dependencies:
   fluttertoast: ^8.0.8
   shared_preferences: ^2.0.12
   share: ^2.0.4
+  rename: ^2.0.1
+  flutter_native_splash: ^1.3.3
+
+flutter_native_splash:
+  color: "#222830"
+  image: assets/logo.png
+  android: true
+  ios: true
 
 dev_dependencies:
   flutter_test:
